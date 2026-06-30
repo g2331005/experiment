@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>３色配色画像の７段階印象評価</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background-color: #808080; color: #000; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: #808080; padding: 20px; border-radius: 8px; }
+        
+        /* 左右に分割するためのワークスペース */
+        .workspace {
+            display: flex;
+            gap: 25px;
+            align-items: flex-start;
+            margin-top: 15px;
+        }
+        
+        /* 左側: 画像を画面内に完全固定するエリア */
+        .left-panel {
+            flex: 1;
+            position: sticky;
+            top: 20px; /* スクロールしても画面上部に張り付く */
+            background: #808080; 
+            padding: 20px;
+            border-radius: 6px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 390px; /* 画像エリアの高さの目安を確保 */
+        }
+        .left-panel img { 
+            max-width: 100%; 
+            height: auto; 
+            max-height: 350px; 
+            border: 1px solid #000; /* 画像そのものに1pxのグレーの輪郭を追加 */
+            box-sizing: border-box;
+            background: #fff; /* 万が一透過画像があっても大丈夫なように白背景 */
+        }
+        
+        /* 右側: 24対の形容詞をスクロールさせるエリア */
+        .right-panel {
+            flex: 1.4;
+            height: 70vh; /* 画面の高さの70%分だけ表示領域を確保 */
+            overflow-y: auto; /* 縦スクロールを有効にする */
+            background: #888;
+            padding: 10px 25px;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        
+        table { width: 100%; border-collapse: collapse; }
+        td { padding: 16px 5px; text-align: center; border-bottom: 1px solid #444; }
+        .adjective-left { text-align: right; width: 22%; font-weight: bold; }
+        .adjective-right { text-align: left; width: 22%; font-weight: bold; }
+        
+        /* ボタン配置エリア */
+        .btn-container { text-align: center; padding: 25px 0; display: flex; justify-content: center; gap: 15px; }
+        button { padding: 12px 30px; font-size: 16px; cursor: pointer; }
+        button:disabled { cursor: not-allowed; opacity: 0.5; }
+        
+        /* ラジオボタンの大きさ */
+        input[type="radio"] {
+            transform: scale(2); /* 大きさを2倍に */
+            margin: 0 10px;
+            cursor: pointer;
+        }
+
+        /* 評価テーブルのヘッダー（数字）部分のスタイル */
+        #sd-table th {
+            padding: 10px 5px;
+            font-weight: normal;
+            color: #000;
+        }
+        
+        /* 真ん中（4つ目）のラジオボタンがある列のスタイル */
+        #sd-table td:nth-child(5),
+        #sd-table th:nth-child(5) {
+            background-color: #888; /* 縦のラインを作る */
+            border-left: 1px dashed #666; /* 左右に点線を引いて区切る */
+            border-right: 1px dashed #666;
+            color: #000;
+            font-weight: bold;
+        }
+
+        .notice {
+            margin: 15px auto 20px;
+            padding: 12px 16px;
+            max-width: 900px;
+            background: #d9d9d9;
+            border: 1px solid #666;
+            border-radius: 6px;
+            font-size: 15px;
+            line-height: 1.7;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>３色配色画像の７段階印象評価 (<span id="progress"></span>)</h2>
+
+        <p class="notice">
+        ３色配色画像全体から受ける印象を、７段階で直感的に回答してください。<br>
+        ※PC（端末）・ブラウザを途中で変えず、省エネ機能・夜間モード・低電力モード・Night Shift・True Toneをオフにし、
+        画面の明るさを最大にしてください。<br>
+        途中で閉じても、同PC（端末）・同ブラウザであれば再開できますので、適宜休憩してください。
+        </p>
+        
+        <div class="workspace">
+            <div class="left-panel">
+                <img id="stimulus-image" src="" alt="評価画像">
+            </div>
+            
+            <div id="scroll-area" class="right-panel">
+                <form id="evaluation-form">
+                    <table id="sd-table"></table>
+                    <div class="btn-container">
+                        <button type="button" id="prev-btn" onclick="prevTrial()">前の画像へ</button>
+                        <button type="button" onclick="nextTrial()">次の画像へ</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 評価する画像のリスト（配色画像50枚）
+        let images = [  "triple/001.png","triple/002.png","triple/003.png","triple/004.png","triple/005.png",
+                        "triple/006.png","triple/007.png","triple/008.png","triple/009.png","triple/010.png",
+                        "triple/011.png","triple/012.png","triple/013.png","triple/014.png","triple/015.png",
+                        "triple/016.png","triple/017.png","triple/018.png","triple/019.png","triple/020.png",
+                        "triple/021.png","triple/022.png","triple/023.png","triple/024.png","triple/025.png",
+                        "triple/026.png","triple/027.png","triple/028.png","triple/029.png","triple/030.png",
+                        "triple/031.png","triple/032.png","triple/033.png","triple/034.png","triple/035.png",
+                        "triple/036.png","triple/037.png","triple/038.png","triple/039.png","triple/040.png",
+                        "triple/041.png","triple/042.png","triple/043.png","triple/044.png","triple/045.png",
+                        "triple/046.png","triple/047.png","triple/048.png","triple/049.png","triple/050.png",
+        ];
+        
+        // 形容詞対の設定
+        const adjectives = [
+            ["落ち着いた", "慌てる"], ["優しい", "厳しい"], ["華やか", "地味"],
+            ["上品","下品"],["温かい","冷たい"],["淡い","濃い"],
+            ["安心感","不安感"],["大人っぽい","子供っぽい"],["甘い","苦い"],
+            ["清潔感","不潔感"],["透明感","不透明感"],["深い","浅い"],
+            ["濃い","薄い"],["暗い","明るい"],["繊細","粗い"],
+            ["女性的","男性的"],["涼しい","暑い"],["元気","弱弱しい"],
+            ["誠実","不誠実"],["大胆","臆病"],["ポジティブ","ネガティブ"],
+            ["幸せ","不幸せ"],["開放感","閉塞感"],["健康的","不健康"]
+        ];
+
+        let currentIndex = 0;
+        let results = []; 
+
+        // 配列をランダムにシャッフルする関数
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function persistState(){
+            localStorage.setItem("color_eval_state", JSON.stringify({
+                currentIndex: currentIndex,
+                results: results,
+                images: images
+            }));
+        }
+
+        function restoreState(){
+            const raw = localStorage.getItem("color_eval_state");
+            if(!raw) return;
+            try{
+                const s = JSON.parse(raw);
+                if(confirm("前回の続きがあります。続きから再開しますか？")){
+                    currentIndex = s.currentIndex || 0;
+                    results = s.results || [];
+                    if(Array.isArray(s.images) && s.images.length===images.length){
+                        images = s.images;
+                    }
+                }else{
+                    localStorage.removeItem("color_eval_state");
+                }
+            }catch(e){
+                localStorage.removeItem("color_eval_state");
+            }
+        }
+
+        // SD法テーブルの初期生成
+        function initTable() {
+            restoreState();
+            if(results.length===0){ shuffleArray(images); }
+
+            const table = document.getElementById("sd-table");
+            
+            let headerRow = `<tr>
+                <th></th>
+                <th>1</th><th>2</th><th>3</th>
+                <th>4<br><span style="font-size: 0.8em;">(中立)</span></th>
+                <th>5</th><th>6</th><th>7</th>
+                <th></th>
+            </tr>`;
+            table.innerHTML += headerRow;
+
+            adjectives.forEach((adj, index) => {
+                let row = `<tr><td class="adjective-left">${adj[0]}</td>`;
+                for (let i = 1; i <= 7; i++) {
+                    row += `<td><input type="radio" name="adj${index}" value="${i}"></td>`;
+                }
+                row += `<td class="adjective-right">${adj[1]}</td></tr>`;
+                table.innerHTML += row;
+            });
+            updateView();
+        }
+
+        // 画面の更新
+        function updateView() {
+            document.getElementById("progress").innerText = `${currentIndex + 1} / ${images.length}`;
+            document.getElementById("stimulus-image").src = images[currentIndex];
+            
+            // フォームを一旦クリア
+            document.getElementById("evaluation-form").reset();
+            
+            // 過去の回答が既に存在する場合は復元する
+            const savedResult = results[currentIndex];
+            if (savedResult) {
+                adjectives.forEach((_, index) => {
+                    const val = savedResult[`adj${index}`];
+                    if (val) {
+                        const radio = document.querySelector(`input[name="adj${index}"][value="${val}"]`);
+                        if (radio) radio.checked = true;
+                    }
+                });
+            }
+            
+            // 最初の画像では「前の画像へ」ボタンを無効化
+            document.getElementById("prev-btn").disabled = (currentIndex === 0);
+            
+            // 質問エリアのスクロールを一番上に戻す
+            document.getElementById("scroll-area").scrollTop = 0;
+
+            // 【バグ修正ポイント】画面が新しいインデックスに切り替わったタイミングでLocal Storageに保存
+            persistState();
+        }
+
+        // 現在の入力内容を results 配列の現在位置に保存する関数
+        function saveCurrentResult(validate = false) {
+            let imagePath = images[currentIndex];
+            let imageNum = parseInt(imagePath.match(/\d+/)[0], 10);
+            
+            let currentResult = { image: imageNum };
+            for (let i = 0; i < adjectives.length; i++) {
+                const selected = document.querySelector(`input[name="adj${i}"]:checked`);
+                if (validate && !selected) {
+                    alert("すべての項目に回答してください。");
+                    return false;
+                }
+                currentResult[`adj${i}`] = selected ? selected.value : "";
+            }
+            results[currentIndex] = currentResult;
+            return true;
+        }
+
+        // 次の画像へ進む処理
+        function nextTrial() {
+            if (!saveCurrentResult(true)) return;
+
+            currentIndex++;
+            if (currentIndex < images.length) {
+                updateView();
+            } else {
+                downloadCSV();
+            }
+        }
+
+        // 前の画像へ戻る処理
+        function prevTrial() {
+            if (currentIndex > 0) {
+                saveCurrentResult(false);
+                currentIndex--;
+                updateView();
+            }
+        }
+
+        // CSVとしてダウンロードする処理
+        function downloadCSV() {
+            let csvContent = "\uFEFF"; // BOM追加で文字化け防止
+            
+            let header = ["Image"];
+            adjectives.forEach(adj => header.push(`${adj[0]}-${adj[1]}`));
+            csvContent += header.join(",") + "\r\n";
+
+            for (let i = 0; i < images.length; i++) {
+                let row = results[i];
+                if (!row) {
+                    let imagePath = images[i];
+                    let imageNum = parseInt(imagePath.match(/\d+/)[0], 10);
+                    let rowData = [imageNum];
+                    adjectives.forEach(() => rowData.push(""));
+                    csvContent += rowData.join(",") + "\r\n";
+                } else {
+                    let rowData = [row.image];
+                    adjectives.forEach((_, index) => {
+                        let val = row[`adj${index}`];
+                        rowData.push(val !== undefined ? val : "");
+                    });
+                    csvContent += rowData.join(",") + "\r\n";
+                }
+            }
+
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", "experiment_results.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            localStorage.removeItem("color_eval_state");
+            document.body.innerHTML = "<h2>長時間のご協力ありがとうございました。ダウンロードされたCSVファイルを送信してください。</h2>";
+        }
+
+        window.onload = initTable;
+    </script>
+</body>
+</html>
